@@ -18,6 +18,29 @@ params_hh = {
     'items_on_page': 20
 }
 """
+Функция salary_format обрабатывает поле "зарплата" в зависимости от его значения
+"""
+
+
+def salary_format(salary=None):
+    result = {}
+    res = []
+    for i in salary.split():
+        try:
+            res.append(int(i))
+        except ValueError:
+            pass
+    if len(res) == 0:
+        result = salary
+    elif len(res) == 1:
+        result['зарплата'] = res[0]
+    elif len(res) == 2:
+        result['минимальная зарплата'] = res[0]
+        result['максимальная зарплата'] = res[1]
+    return result
+
+
+"""
 Функция parse_hh парсит все страницы сайта Headhunter.ru, которые находит по ключевому слову "python"
 и записывает результаты в json-файл
 Параметр page_limit устанавливает кол-во страниц, по которым пройдет парсер для сбора данных,
@@ -26,7 +49,7 @@ params_hh = {
 
 
 def parse_hh(page_limit=2):
-    result = {}
+    result_list = []
     page = 0
     while page_limit > page:
         params_hh['page'] = page
@@ -37,17 +60,18 @@ def parse_hh(page_limit=2):
         company_name = soup.find_all('a', {'class': 'bloko-link bloko-link_kind-tertiary'})
         if len(vacancy_name) > 0:
             for i in range(len(vacancy_name) - 1):
-                result[f' Название вакансии: {vacancy_name[i].text}'] = {
-                    'ссылка': vacancy_name[i]['href'],
-                    ' название компании': company_name[i].text,
-                    'зарплата': salary[i].next_sibling.next_sibling.text if
-                    salary[i].next_sibling.next_sibling.text else 'зарплата не указана',
-                    'взято с сайта': SITE
-                }
+                res = {}
+                res['название вакансии'] = vacancy_name[i].text
+                res['ссылка'] = vacancy_name[i]['href']
+                res['название компании'] = company_name[i].text
+                res['зарплата'] = salary_format(salary[i].next_sibling.next_sibling.text) \
+                    if salary[i].next_sibling.next_sibling.text else 'зарплата не указана'
+                res['взято с сайта'] = SITE
+                result_list.append(res)
             page += 1
         else:
             break
-    return result
+    return result_list
 
 
 SITE_RABOTA_RU = 'spb.rabota.ru'
@@ -62,7 +86,7 @@ params_rabota = {'query': 'python', 'sort': 'relevance'}
 
 
 def parse_rabota_ru(page_limit=2):
-    result = {}
+    result_list = []
     page = 0
     while page_limit > page:
         params_rabota['page'] = page
@@ -80,23 +104,25 @@ def parse_rabota_ru(page_limit=2):
         company_name = [i.text.replace('\n', '').replace('  ', '') for i in company_name]
         if len(vacancy_name) > 0:
             for i in range(len(vacancy_name) - 1):
-                result[f' Название вакансии: {vacancy_name[i]}'] = {
-                    'ссылка': vacancy_link[i],
-                    'название компании': company_name[i],
-                    'зарплата': salary[i].text.replace('\xa0', ''),
-                    'взято с сайта': SITE_RABOTA_RU
-                }
+                res = {}
+                res['название вакансии'] = vacancy_name[i]
+                res['ссылка'] = vacancy_link[i]
+                res['название компании'] = company_name[i]
+                res['зарплата'] = salary_format(salary[i].text.replace('\xa0', ''))
+                res['взято с сайта'] = SITE_RABOTA_RU
+                result_list.append(res)
             page += 1
         else:
             break
-    return result
+    return result_list
 
 
 def main(*args):
-    final_result = {}
+    final_result = []
     for i in args:
-        final_result |= i()
-    with open('result.json', 'w', encoding='utf-8') as file:
+        final_result += i()
+    # final_result = args[0]()
+    with open('result_new.json', 'w', encoding='utf-8') as file:
         json.dump(final_result, file, ensure_ascii=False, indent=6)
 
 
